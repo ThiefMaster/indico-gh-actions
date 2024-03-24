@@ -22,6 +22,13 @@ on:
         type: boolean
         default: true
         description: Whether to append a version suffix containing commit hash and build date to the package version
+      artifact-retention-days:
+        type: number
+        default: 1
+        description: Number of days to keep the individual plugin wheel artifacts
+
+permissions:
+  contents: read
 
 jobs:
   plugin-matrix:
@@ -154,25 +161,25 @@ jobs:
       - name: Install plugin 🔧
         if: matrix.install
         working-directory: plugins
-        run: pip install --user -e ${{ matrix.plugin }}/
+        run: pip install --user -e ${{ matrix.path || '.' }}/
 
       # XXX this is already done by build-wheel.py (but w/o react i18n which we don't use in plugins yet)
       # - name: Compile translations 🏴‍☠️
       #   if: matrix.i18n
       #   working-directory: indico
-      #   run: indico i18n compile plugin ../plugins/${{ matrix.plugin }}
+      #   run: indico i18n compile plugin ../plugins/${{ matrix.path }}
 
       - name: Build wheel 🏗
         working-directory: indico
         run: >-
           ./bin/maintenance/build-wheel.py
           plugin
-          ../plugins/${{ matrix.plugin }}
+          ../plugins/${{ matrix.path }}
           ${{ inputs.add-version-suffix && '--add-version-suffix' || '' }}
 
       - uses: actions/upload-artifact@v4
         name: Upload build artifacts 📦
         with:
-          name: plugin-wheel-${{ matrix.plugin }}
-          retention-days: 1
+          name: ${{ matrix.single && 'plugin-wheel' || format('plugin-wheel-{0}', matrix.plugin) }}
+          retention-days: ${{ inputs.artifact-retention-days }}
           path: ./indico/dist

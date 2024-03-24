@@ -9,20 +9,34 @@ from pathlib import Path
 from setuptools.config.setupcfg import read_configuration
 
 
+def _get_pkg_dir(plugin_dir: Path):
+    candidates = list(plugin_dir.glob('indico_*/__init__.py'))
+    if len(candidates) == 1:
+        return candidates[0].parent
+    elif candidates:
+        print(f'::error::Found multiple potential plugin package dirs: {candidates}')
+        sys.exit(1)
+    else:
+        if any(plugin_dir.glob('indico_*.py')):
+            return None
+        print('::error::Found no plugin package dirs and no single-file plugin')
+        sys.exit(1)
+
+
 def _plugin_has_assets(plugin_dir: Path):
     return (plugin_dir / 'webpack.config.js').exists() or (plugin_dir / 'webpack-bundles.json').exists()
 
 
 def _plugin_has_i18n(plugin_dir: Path):
-    pkg_dir = plugin_dir / f'indico_{plugin_dir.name}'
+    if not (pkg_dir := _get_pkg_dir(plugin_dir)):
+        return False
     return (pkg_dir / 'translations').exists()
 
 
 def _plugin_has_invalid_manifest(plugin_dir: Path):
-    pkg_dir = plugin_dir / f'indico_{plugin_dir.name}'
-    pkg_file = plugin_dir / f'indico_{plugin_dir.name}.py'
-    if not pkg_dir.exists() and pkg_file.exists():
-        return False
+    pkg_dir = _get_pkg_dir(plugin_dir)
+    if not pkg_dir:
+        return
     data_dirs = [
         sub.name
         for sub in pkg_dir.iterdir()
@@ -55,16 +69,22 @@ def _get_plugin_deps(plugin_dir: Path):
     ]
 
 
-def _get_plugin_data(plugin_dir: Path):
-    name = plugin_dir.name
-    meta = name == '_meta'
+def _get_plugin_data(plugin_dir: Path, *, single=False):
+    if single:
+        name = _get_pkg_dir(plugin_dir).name.removeprefix('indico_')
+        meta = False
+    else:
+        name = plugin_dir.name
+        meta = name == '_meta'
     return {
         'plugin': name,
+        'path': '' if single else name,
         'install': not meta,
         'assets': _plugin_has_assets(plugin_dir) if not meta else False,
         'i18n': _plugin_has_i18n(plugin_dir) if not meta else False,
         'deps': _get_plugin_deps(plugin_dir) if not meta else [],
         'invalid_manifest': _plugin_has_invalid_manifest(plugin_dir) if not meta else False,
+        'single': single,
     }
 
 
@@ -81,18 +101,22 @@ def _get_changed_dirs():
 
 
 def main():
-    plugin_data = sorted(
-        (_get_plugin_data(x) for x in Path().iterdir() if x.is_dir() and (x / 'setup.cfg').exists()),
-        key=itemgetter('plugin'),
-    )
-
-    # Filter out untouched plugin if we're running for a PR
-    if os.environ['GITHUB_EVENT_NAME'] == 'pull_request':
-        print('::notice title=PR mode::Adding plugins touched in this PR to matrix')
-        changed_dirs = _get_changed_dirs()
-        plugin_data = [x for x in plugin_data if x['plugin'] in changed_dirs]
+    if Path('setup.cfg').exists():
+        # single-plugin repo
+        plugin_data = [_get_plugin_data('..' / Path(Path().absolute().name), single=True)]
     else:
-        print('::notice title=Push mode::Adding all plugins to matrix')
+        # multi-plugin repo
+        plugin_data = sorted(
+            (_get_plugin_data(x) for x in Path().iterdir() if x.is_dir() and (x / 'setup.cfg').exists()),
+            key=itemgetter('plugin'),
+        )
+        # Filter out untouched plugin if we're running for a PR
+        if os.environ['GITHUB_EVENT_NAME'] == 'pull_request':
+            print('::notice title=PR mode::Adding plugins touched in this PR to matrix')
+            changed_dirs = _get_changed_dirs()
+            plugin_data = [x for x in plugin_data if x['plugin'] in changed_dirs]
+        else:
+            print('::notice title=Push mode::Adding all plugins to matrix')
 
     if plugin_data:
         print(f'::notice title=Plugins added to matrix::{', '.join(sorted(x['plugin'] for x in plugin_data))}')
