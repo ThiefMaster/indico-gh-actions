@@ -18,6 +18,10 @@ on:
         type: string
         default: ''
         description: A GitHub repo with additional plugins that might be required as dependencies
+      extra-plugins-dir:
+        type: string
+        default: extra
+        description: The name of the additional set of plugins (used as a directory name)
       add-version-suffix:
         type: boolean
         default: true
@@ -26,6 +30,10 @@ on:
         type: number
         default: 1
         description: Number of days to keep the individual plugin wheel artifacts
+      directory:
+        type: string
+        required: true
+        description: The name of the plugin / set of plugins (used as a directory name)
 
 permissions:
   contents: read
@@ -76,7 +84,7 @@ jobs:
       - name: Checkout plugins
         uses: actions/checkout@v4
         with:
-          path: plugins
+          path: plugins/${{ inputs.directory }}
           # prefer head commit over merge commit in case of PRs
           ref: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}
 
@@ -114,7 +122,7 @@ jobs:
         uses: actions/checkout@v4
         if: inputs.extra-plugins-repo
         with:
-          path: plugins-extra
+          path: plugins/${{ inputs.extra-plugins-dir }}
           repository: indico/indico-plugins
           ref: ${{ steps.extra-plugins-repo.outputs.PLUGINS_BRANCH }}
 
@@ -151,30 +159,30 @@ jobs:
         if: matrix.install && toJson(matrix.deps) != '[]'
         run: |
           for dep in ${{ join(matrix.deps, ' ') }}; do
-            if [[ -e plugins/$dep ]]; then
-              pip install --user -e plugins/$dep/
+            if [[ -e plugins/${{ inputs.directory }}/$dep ]]; then
+              pip install --user -e plugins/${{ inputs.directory }}/$dep/
             else
-              pip install --user -e plugins-extra/$dep/
+              pip install --user -e plugins/${{ inputs.extra-plugins-dir }}/$dep/
             fi
           done
 
       - name: Install plugin 🔧
         if: matrix.install
-        working-directory: plugins
+        working-directory: plugins/${{ inputs.directory }}
         run: pip install --user -e ${{ matrix.path || '.' }}/
 
       # XXX this is already done by build-wheel.py (but w/o react i18n which we don't use in plugins yet)
       # - name: Compile translations 🏴‍☠️
       #   if: matrix.i18n
       #   working-directory: indico
-      #   run: indico i18n compile plugin ../plugins/${{ matrix.path }}
+      #   run: indico i18n compile plugin ../plugins/${{ inputs.directory }}/${{ matrix.path }}
 
       - name: Build wheel 🏗
         working-directory: indico
         run: >-
           ./bin/maintenance/build-wheel.py
           plugin
-          ../plugins/${{ matrix.path }}
+          ../plugins/${{ inputs.directory }}/${{ matrix.path }}
           ${{ inputs.add-version-suffix && '--add-version-suffix' || '' }}
 
       - uses: actions/upload-artifact@v4
