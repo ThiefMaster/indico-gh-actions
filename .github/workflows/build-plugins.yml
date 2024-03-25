@@ -45,6 +45,7 @@ jobs:
     if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'build-wheel')
     outputs:
       matrix: ${{ steps.plugin-matrix.outputs.matrix }}
+      source-date-epoch: ${{ steps.time.outputs.time }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -66,6 +67,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number }}
         run: python $GITHUB_WORKSPACE/.workflow/scripts/generate_matrix.py
+      - name: Get current time
+        id: time
+        run: echo "time=$(date +%s)" >> $GITHUB_OUTPUT
 
   build:
     name: Build ${{ matrix.plugin }} 🛠
@@ -74,6 +78,8 @@ jobs:
     if: needs.plugin-matrix.outputs.matrix != ''
     strategy:
       matrix: ${{ fromJson(needs.plugin-matrix.outputs.matrix) }}
+    env:
+      SOURCE_DATE_EPOCH: ${{ needs.plugin-matrix.outputs.source-date-epoch }}
     steps:
       - name: Fail build if manifest is invalid
         if: matrix.invalid_manifest
