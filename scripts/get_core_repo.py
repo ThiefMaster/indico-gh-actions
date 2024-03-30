@@ -62,7 +62,7 @@ def lookup_via_referenced_prs():
 def main():
     gh_event = os.environ['GITHUB_EVENT_NAME']
     check_common_branch = True
-    if gh_event == 'push':
+    if gh_event in {'push', 'workflow_dispatch'}:
         full_repo = CORE
         branch = os.environ['GITHUB_REF'].removeprefix('refs/heads/')
         print(f'Using current branch: {branch}')

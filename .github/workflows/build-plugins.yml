@@ -42,7 +42,7 @@ jobs:
   plugin-matrix:
     name: Generate matrix
     runs-on: ubuntu-22.04
-    if: github.event_name == 'push' || contains(github.event.pull_request.labels.*.name, 'build-wheel')
+    if: github.event_name != 'pull_request' || contains(github.event.pull_request.labels.*.name, 'build-wheel')
     outputs:
       matrix: ${{ steps.plugin-matrix.outputs.matrix }}
       source-date-epoch: ${{ steps.time.outputs.time }}

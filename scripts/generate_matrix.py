@@ -115,6 +115,8 @@ def main():
             print('::notice title=PR mode::Adding plugins touched in this PR to matrix')
             changed_dirs = _get_changed_dirs()
             plugin_data = [x for x in plugin_data if x['plugin'] in changed_dirs]
+        elif os.environ['GITHUB_EVENT_NAME'] == 'workflow_dispatch':
+            print('::notice title=Manual mode::Adding all plugins to matrix')
         else:
             print('::notice title=Push mode::Adding all plugins to matrix')
 
