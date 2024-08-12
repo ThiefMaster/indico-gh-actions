@@ -62,7 +62,8 @@ def _get_plugin_data(plugin_dir: Path, *, single=False):
 def _get_changed_dirs():
     try:
         resp = subprocess.check_output(
-            ['gh', 'api', f'repos/{os.environ['GITHUB_REPOSITORY']}/pulls/{os.environ['PR_NUMBER']}/files'],
+            ['gh', 'api', f'repos/{os.environ['GITHUB_REPOSITORY']}/pulls/{os.environ['PR_NUMBER']}/files',
+             '--paginate'],
             encoding='utf-8',
         )
     except subprocess.CalledProcessError:
