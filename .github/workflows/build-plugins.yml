@@ -81,12 +81,6 @@ jobs:
     env:
       SOURCE_DATE_EPOCH: ${{ needs.plugin-matrix.outputs.source-date-epoch }}
     steps:
-      - name: Fail build if manifest is invalid
-        if: matrix.invalid_manifest
-        run: |
-          echo ::error::Plugin has invalid manifest
-          exit 1
-
       - name: Checkout plugins
         uses: actions/checkout@v4
         with:
@@ -139,7 +133,7 @@ jobs:
           cache: pip
           cache-dependency-path: |
             indico/requirements*.txt
-            plugins/**/setup.cfg
+            plugins/**/pyproject.toml
 
       - name: Setup Node
         if: matrix.assets
