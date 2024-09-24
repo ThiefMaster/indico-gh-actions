@@ -34,6 +34,9 @@ on:
         type: string
         required: true
         description: The name of the plugin / set of plugins (used as a directory name)
+      plugin:
+        type: string
+        description: The plugin to build when building a specific one (via workflow_dispatch)
 
 permissions:
   contents: read
@@ -66,6 +69,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
           PR_NUMBER: ${{ github.event_name == 'pull_request' && github.event.pull_request.number }}
+          PLUGIN_NAME: ${{ github.event_name == 'workflow_dispatch' && inputs.plugin }}
         run: python $GITHUB_WORKSPACE/.workflow/scripts/generate_matrix.py
       - name: Get current time
         id: time
