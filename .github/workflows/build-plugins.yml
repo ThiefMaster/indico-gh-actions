@@ -10,6 +10,10 @@ on:
         type: string
         default: '3.12'
         description: The Python version to use during the build
+      node-version:
+        type: string
+        default: '22.x'
+        description: The node version to use during the build
       scripts-repo:
         type: string
         default: indico/indico-gh-actions
@@ -143,7 +147,7 @@ jobs:
         if: matrix.assets
         uses: actions/setup-node@v4
         with:
-          node-version: 18.x
+          node-version: ${{ inputs.node-version }}
           cache: 'npm'
           cache-dependency-path: indico/package-lock.json
 
